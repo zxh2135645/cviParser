@@ -7,9 +7,8 @@
 
 clear all;
 close all;
-
 % Read files
-path = '/Users/jameszhang/Documents/Rohan/contour exporting/HAM_CHOON_SIK/LGE/LGEcontour.cvi42wsx';
+%path = '/Users/jameszhang/Documents/Rohan/contour exporting/HAM_CHOON_SIK/LGE/LGEcontour.cvi42wsx';
 path = '/Users/jameszhang/Documents/Rohan/contour exporting/HAM_CHOON_SIK/T1/T1contour.cvi42wsx';
 con = CMR42ContourReader(path);
 dicom_fields = {...
@@ -28,8 +27,9 @@ dicom_fields = {...
         };
 %[volume_image, slice_data, image_meta_data] = ...
 %    dicom23D('/Users/jameszhang/Documents/Rohan/contour exporting/HAM_CHOON_SIK/LGE/DICOM/HAM_CHOON_SIK_062Y/series0092-Body/', dicom_fields);
+dicom_path = char(glob('/Users/jameszhang/Documents/Rohan/contour exporting/HAM_CHOON_SIK/T1/DICOM/*/*'));
 [volume_image, slice_data, image_meta_data] = ...
-    dicom23D('/Users/jameszhang/Documents/Rohan/contour exporting/HAM_CHOON_SIK/T1/DICOM/HAM_CHOON_SIK_062Y/', dicom_fields);
+    dicom23D(dicom_path, dicom_fields);
 %% Find Epi and Endo
 num_contours = length(slice_data);
 %num_contours = 6;
@@ -68,10 +68,12 @@ end
 %% Remove zero matrix
 clear endo_flow_edit epi_flow_edit;
 count = 1;
+index_array = [];
 for i = 1 : num_contours
     if any(epi_flow{i}(:))
         epi_flow_edit(:,:,count) = epi_flow{i}(:,:);
         endo_flow_edit(:,:,count) = endo_flow{i}(:,:);
+        index_array = [index_array; i];
         count = count + 1;
     end
 end
@@ -138,12 +140,21 @@ for i = 1:num
     %subplot(n,n,i);
     
     shifted_heart(:,:,i) = flipud(rot90(circshift(heart(:,:,i), [0, -0]),1));
-    mask_heart = shifted_heart(:,:,i) .* volume_image(:,:,i);
+    mask_heart = shifted_heart(:,:,i) .* volume_image(:,:,index_array(i));
     imagesc(mask_heart);
     %colormap gray;
     axis equal;
 end
 
+%{
+for i = 1:num
+    figure();
+    
+    imagesc(volume_image(:,:,index_array(i)));
+    %colormap gray;
+    axis equal;
+end
+%}
 %% Save files to ../masked/
 currentFolder = pwd;
 dstFolder = GetFullPath(cat(2, currentFolder, '/../masked/'));
@@ -158,7 +169,7 @@ if ~ exist(dstFolder, 'dir')
 end
 
 for i = 1:num
-    mask_heart = shifted_heart(:,:,i) .* volume_image(:,:,i);
-    dstPath = cat(2, dstFolder, '/masked_heart', num2str(i), '.mat');
+    mask_heart = shifted_heart(:,:,i) .* volume_image(:,:,index_array(i));
+    dstPath = cat(2, dstFolder, '/masked_heart', num2str(index_array(i)), '.mat');
     save(dstPath, 'mask_heart');
 end
