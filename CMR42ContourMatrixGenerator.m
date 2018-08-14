@@ -21,7 +21,6 @@ dicom_fields = {...
 
 % Find Epi- and Endo-cardium from the contours
 num_contours = length(slice_data);
-%num_contours = 6;
 
 contour_idx = zeros(1, num_contours);
 
@@ -51,7 +50,7 @@ for i = 1:num_contours
                 epi_flow{i}([ceil(con.contours(contour_idx(i)).pts{j}(c,1))], [ceil(con.contours(contour_idx(i)).pts{j}(c,2))]) = 1;
             end
         end
-    end    
+    end
 end
 
 % Remove zero matrix
