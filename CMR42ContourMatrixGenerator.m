@@ -1,4 +1,4 @@
-function CMR42ContourMatrixGenerator(cvi42wsx, dicom, dstFolder)
+function CMR42ContourMatrixGenerator(cvi42wsx, dicom, dstFolder, dstLabel, modality)
 
 % Read DICOM and contours
 con = CMR42ContourReader(cvi42wsx);
@@ -34,20 +34,37 @@ end
 
 epi_flow = cell(1, num_contours);
 endo_flow = cell(1, num_contours);
+excludeContour = cell(1, num_contours);
+myoRef = cell(1, num_contours);
+excludeCtr_struct = struct;
 
 for i = 1:num_contours
-    ctype = con.contours(contour_idx(i)).ctype;
+    ctype = [];
+    if contour_idx(i) ~= 0
+        ctype = con.contours(contour_idx(i)).ctype;
+    end
     epi_flow{i} = zeros(size(volume_image, 2), size(volume_image,1));
     endo_flow{i} = zeros(size(volume_image, 2), size(volume_image,1));
+    excludeContour{i} = zeros(size(volume_image, 2), size(volume_image,1));
+    myoRef{i} = zeros(size(volume_image, 2), size(volume_image,1));
     for j = 1:length(ctype)
-        contour_type = ctype(j);
-        if strcmp(contour_type{1}, 'saendocardialContour')
+        contour_type = ctype{j};
+        if strcmp(contour_type, 'saendocardialContour')
             for c = 1: length(con.contours(contour_idx(i)).pts{j})
                 endo_flow{i}([ceil(con.contours(contour_idx(i)).pts{j}(c,1))], [ceil(con.contours(contour_idx(i)).pts{j}(c,2))]) = 1;
             end
-        elseif strcmp(contour_type{1}, 'saepicardialContour')
+        elseif strcmp(contour_type, 'saepicardialContour')
             for c = 1: length(con.contours(contour_idx(i)).pts{j})
                 epi_flow{i}([ceil(con.contours(contour_idx(i)).pts{j}(c,1))], [ceil(con.contours(contour_idx(i)).pts{j}(c,2))]) = 1;
+            end
+        elseif contains(contour_type, 'excludeEnhancementAreaContour')
+            for c = 1: length(con.contours(contour_idx(i)).pts{j})
+                excludeContour{i}([ceil(con.contours(contour_idx(i)).pts{j}(c,1))], [ceil(con.contours(contour_idx(i)).pts{j}(c,2))]) = 1;
+            end
+            excludeCtr_struct.(contour_type) = excludeContour;
+        elseif contains(contour_type, 'saReferenceMyoContour')
+            for c = 1: length(con.contours(contour_idx(i)).pts{j})
+                myoRef{i}([ceil(con.contours(contour_idx(i)).pts{j}(c,1))], [ceil(con.contours(contour_idx(i)).pts{j}(c,2))]) = 1;
             end
         end
     end
@@ -64,6 +81,37 @@ for i = 1 : num_contours
         count = count + 1;
     end
 end
+
+% For excludeContour
+clear excludeContour_edit
+fname = fieldnames(excludeCtr_struct);
+
+for i = 1 : length(fname)
+    count = 1;
+    clear excludeCtr_mat
+    ctr_index_array = [];
+    for j = 1 : num_contours
+        if any(excludeCtr_struct.(fname{i}){j}(:))
+            excludeCtr_mat(:,:,count) =  excludeCtr_struct.(fname{i}){j};
+            ctr_index_array = [ctr_index_array; j];
+            count = count + 1;
+        end
+    end
+    excludeContour_edit(i, 1:2) = {fname{i}, excludeCtr_mat};
+    excludeContour_edit(i, 3) = {ctr_index_array};
+end
+
+% For myoRef
+count = 1;
+myo_index_array = [];
+for i = 1 : num_contours
+    if any(myoRef{i}(:))
+        myoRef_edit(:,:,count) = myoRef{i}(:,:);
+        myo_index_array = [myo_index_array; i];
+        count = count + 1;
+    end
+end
+
 
 % Get center coordinate and region growing
 contours = epi_flow_edit + endo_flow_edit;
@@ -92,7 +140,7 @@ for i = 1: num
 end
 
 shifted_heart = zeros(size(volume_image));
-
+shifted_myo = zeros(size(volume_image));
 
 % Apply heart to the image and save it to OutputPath
 
@@ -102,9 +150,47 @@ end
 
 for i = 1:num
     shifted_heart(:,:,i) = flipud(rot90(heart(:,:,i),1));
+    shifted_myo(:,:,i) = flipud(rot90(myocardium(:,:,i),1));
     mask_heart = shifted_heart(:,:,i) .* volume_image(:,:,index_array(i));
-    dstPath = cat(2, dstFolder, '/masked_heart', num2str(index_array(i)), '.mat');
-    save(dstPath, 'mask_heart');
+    mask_myocardium = shifted_myo(:,:,i) .* volume_image(:,:,index_array(i));
+    if strcmp(dstLabel, 'Heart')
+        dstPath = cat(2, dstFolder, '/masked_heart', num2str(index_array(i)), '.mat');
+        save(dstPath, 'mask_heart');
+    elseif strcmp(dstLabel, 'Myocardium')
+        dstPath = cat(2, dstFolder, '/masked_myocardium', num2str(index_array(i)), '.mat');
+        save(dstPath, 'mask_myocardium');        
+    end
+end
+
+% Export Exclude Contour
+if strcmp(dstLabel, 'excludeContour')
+    excludeContour = struct;
+    for i = 1:length(fname)
+        excludeContour.(fname{i}) = cell(1, 2);
+        for j = 1:size(excludeContour_edit{i, 2}, 3)
+            excludeContour_edit{i, 2}(:,:,j) = imfill(excludeContour_edit{i, 2}(:,:,j), 'holes');
+            excludeContour_edit{i, 4}(:,:,j) = flipud(rot90(excludeContour_edit{i, 2}(:,:,j),1));
+        end
+        excludeContour.(fname{i}){1} = excludeContour_edit{i, 4};
+        excludeContour.(fname{i}){2} = excludeContour_edit{i, 3};
+    end
+    
+    dstPath = cat(2, dstFolder, '/', modality, '_', 'excludeContour' ,'.mat');
+    save(dstPath, 'excludeContour');
+end
+
+% Export Exclude Contour
+if strcmp(dstLabel, 'MyoReference')
+    myoRefCell = cell(1, 2);
+    for i = 1:size(myoRef_edit, 3)
+        myoRef_edit(:,:,i) = imfill(myoRef_edit(:,:,i), 'holes');
+        shifted_myoRef(:,:,i) = flipud(rot90(myoRef_edit(:,:,i),1));
+    end
+    myoRefCell{1} = shifted_myoRef;
+    myoRefCell{2} = myo_index_array;
+    
+    dstPath = cat(2, dstFolder, '/', modality, '_', 'myoRef' ,'.mat');
+    save(dstPath, 'myoRefCell');
 end
 
 end
