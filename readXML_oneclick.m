@@ -2,7 +2,7 @@ clear all;
 close all;
 
 sequence_label = {'LGE', 'T1'};
-label = char(sequence_label(1));
+label = char(sequence_label(2));
 
 xml_glob = glob(cat(2, 'C:/Users/ZhangX1/Desktop/contour_exporting_Guan/*/', '/contour.cvi42wsx'));
 dicom_glob = glob(cat(2, 'C:/Users/ZhangX1/Desktop/contour_exporting_Guan/*/', label, '/*/*'));
@@ -20,7 +20,7 @@ dstFolder = cat(2, OutputPath, char(strings(end-4)), '/', label);
 con = CMR42ContourReader(cvi42wsx);
 %}
 
-dsts = {'Heart', 'Myocardium', 'excludeContour', 'MyoReference'};
+dsts = {'Heart', 'Myocardium', 'excludeContour', 'MyoReference', 'MI'};
 if length(xml_glob) ~= length(dicom_glob)
     errordlg('Number of DICOM does not match the number of contours, please check!')
 else    
