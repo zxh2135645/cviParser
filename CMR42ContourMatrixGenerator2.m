@@ -119,7 +119,7 @@ if ~ exist(dstFolder, 'dir')
     mkdir(dstFolder);    
 end
 
-if strcmp(dstLabel, 'Heart') || strcmp(dstLabel, 'Myocardium')
+if strcmp(dstLabel, 'Heart') || strcmp(dstLabel, 'Myocardium') || strcmp(dstLabel, 'BloodPool')
     % Get center coordinate and region growing
     contours = epi_flow_edit + endo_flow_edit;
     num = size(contours, 3);
@@ -148,6 +148,7 @@ if strcmp(dstLabel, 'Heart') || strcmp(dstLabel, 'Myocardium')
     
     shifted_heart = zeros(size(volume_image));
     shifted_myo = zeros(size(volume_image));
+    shifted_blood = zeros(size(volume_image));
     
     for i = 1:num
         shifted_heart(:,:,i) = flipud(rot90(heart(:,:,i),1));
@@ -155,12 +156,20 @@ if strcmp(dstLabel, 'Heart') || strcmp(dstLabel, 'Myocardium')
         shifted_heart(:,:,i) = imfill(shifted_heart(:,:,i), 'holes');
         mask_heart = shifted_heart(:,:,i) .* volume_image(:,:,index_array(i));
         mask_myocardium = shifted_myo(:,:,i) .* volume_image(:,:,index_array(i));
+        
+        shifted_blood(:,:,i) = flipud(rot90(blood_pool(:,:,i),1));
+        shifted_blood(:,:,i) = imfill(shifted_blood(:,:,i), 'holes');
+        mask_blood = shifted_blood(:,:,i) .* volume_image(:,:,index_array(i));
+        
         if strcmp(dstLabel, 'Heart')
             dstPath = cat(2, dstFolder, '/masked_heart', num2str(index_array(i)), '.mat');
             save(dstPath, 'mask_heart');
         elseif strcmp(dstLabel, 'Myocardium')
             dstPath = cat(2, dstFolder, '/masked_myocardium', num2str(index_array(i)), '.mat');
             save(dstPath, 'mask_myocardium');
+        elseif strcmp(dstLabel, 'BloodPool')
+            dstPath = cat(2, dstFolder, '/masked_blood', num2str(index_array(i)), '.mat');
+            save(dstPath, 'mask_blood');
         end
     end
 end

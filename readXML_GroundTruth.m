@@ -9,7 +9,7 @@ dicom_glob = glob(cat(2, 'C:/Users/ZhangX1/Desktop/contour_exporting_Guan/*/', l
 CurrentFolder = pwd;
 OutputPath = GetFullPath(cat(2, CurrentFolder, '/../CNNData/'));
 
-dsts = {'Heart', 'Myocardium', 'excludeContour', 'MyoReference', 'MI', 'noReflowAreaContour'};
+dsts = {'Heart', 'Myocardium', 'excludeContour', 'MyoReference', 'MI', 'noReflowAreaContour', 'BloodPool'};
 Names = cell(length(xml_glob), 1);
 for i = 1:length(xml_glob)
     strings = strsplit(xml_glob{i},'\');
